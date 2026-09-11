@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  BROKER
+}
+
+enum LeadStatus {
+  NOVO
+  PRIMEIRO_CONTATO
+  RESPONDEU
+  QUALIFICADO
+  SIMULACAO
+  VISITA_AGENDADA
+  VISITOU
+  PROPOSTA
+  VENDA
+  PERDIDO
+  SEM_INTERESSE
+}
+
+enum TemplateStatus {
+  APPROVED
+  PENDING
+  REJECTED
+  PAUSED
+}
+
+enum CampaignStatus {
+  DRAFT
+  CONFIRMED
+  RUNNING
+  PAUSED
+  DONE
+}
+
+enum RecipientStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  FAILED
+  SKIPPED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(BROKER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  leads         Lead[]         @relation("BrokerLeads")
+  campaigns     Campaign[]     @relation("CampaignCreator")
+  conversations Conversation[] @relation("BrokerConversations")
+  auditLogs     AuditLog[]
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  firstName      String
+  lastName       String?
+  phoneE164      String     @unique
+  email          String?
+  source         String? // meta_ads, form, landing_page, qr_code, csv, manual
+  campaignName   String?
+  development    String? // empreendimento
+  entryDate      DateTime   @default(now())
+  brokerId       String?
+  broker         User?      @relation("BrokerLeads", fields: [brokerId], references: [id])
+  status         LeadStatus @default(NOVO)
+  pipelineStage  LeadStatus @default(NOVO)
+  tags           String[]   @default([])
+  notes          String?
+
+  // Qualificação imobiliária (opcional, minimização de dados)
+  familyIncome    Float?
+  hasFgts         Boolean?
+  maritalStatus   String?
+  buyersCount     Int?
+  hasDependents   Boolean?
+  firstProperty   Boolean?
+  interestRegion  String?
+  approxValue     Float?
+  downPayment     Float?
+  termMonths      Int?
+  visitDate       DateTime?
+
+  // Meta Lead Ads
+  metaCampaignId String?
+  metaAdsetId    String?
+  metaAdId       String?
+  metaFormId     String?
+  metaLeadId     String?  @unique
+  metaCreatedTime DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  consent            LeadConsent?
+  consentLogs        ConsentLog[]
+  messages            Message[]
+  conversation        Conversation?
+  campaignRecipients  CampaignRecipient[]
+
+  @@index([status])
+  @@index([brokerId])
+  @@index([development])
+}
+
+model LeadConsent {
+  id            String    @id @default(cuid())
+  leadId        String    @unique
+  lead          Lead      @relation(fields: [leadId], references: [id])
+  optIn         Boolean   @default(false)
+  optInDate     DateTime?
+  optInSource   String?
+  optInText     String?
+  optOutDate    DateTime?
+  optOutReason  String?
+  updatedAt     DateTime  @updatedAt
+}
+
+// Log append-only de todo evento de consentimento (nunca editado/apagado)
+model ConsentLog {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  event     String // OPT_IN | OPT_OUT
+  source    String?
+  text      String?
+  createdAt DateTime @default(now())
+}
+
+model SuppressionList {
+  id        String   @id @default(cuid())
+  phoneE164 String   @unique
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model WhatsappTemplate {
+  id             String         @id @default(cuid())
+  metaTemplateId String         @unique
+  name           String
+  category       String
+  language       String
+  status         TemplateStatus
+  body           String
+  lastSyncedAt   DateTime       @default(now())
+
+  campaigns Campaign[]
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  name           String
+  development    String?
+  templateId     String
+  template       WhatsappTemplate @relation(fields: [templateId], references: [id])
+  audienceFilter Json
+  scheduledAt    DateTime?
+  status         CampaignStatus @default(DRAFT)
+  createdById    String
+  createdBy      User           @relation("CampaignCreator", fields: [createdById], references: [id])
+  createdAt      DateTime       @default(now())
+
+  recipients CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id         String          @id @default(cuid())
+  campaignId String
+  campaign   Campaign        @relation(fields: [campaignId], references: [id])
+  leadId     String
+  lead       Lead            @relation(fields: [leadId], references: [id])
+  status     RecipientStatus @default(PENDING)
+  skipReason String?
+  messageId  String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId, status])
+}
+
+model Conversation {
+  id                   String   @id @default(cuid())
+  leadId               String   @unique
+  lead                 Lead     @relation(fields: [leadId], references: [id])
+  brokerId             String?
+  broker               User?    @relation("BrokerConversations", fields: [brokerId], references: [id])
+  lastCustomerMessageAt DateTime?
+  status               String   @default("OPEN")
+
+  messages Message[]
+}
+
+model Message {
+  id             String            @id @default(cuid())
+  leadId         String
+  lead           Lead              @relation(fields: [leadId], references: [id])
+  conversationId String?
+  conversation   Conversation?     @relation(fields: [conversationId], references: [id])
+  direction      MessageDirection
+  metaMessageId  String?           @unique
+  templateId     String?
+  body           String?
+  status         String            @default("CREATED")
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failReason     String?
+  createdAt      DateTime          @default(now())
+
+  @@index([leadId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+model ComplianceEvent {
+  id        String   @id @default(cuid())
+  type      String // BLOCKED_SEND | RATE_LIMIT | QUALITY_DROP | OPT_OUT_SPIKE
+  severity  String // INFO | WARNING | CRITICAL
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  rawPayload  Json
+  type        String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
