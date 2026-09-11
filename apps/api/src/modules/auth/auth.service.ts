@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions }
 import { prisma } from "../../utils/prisma";
 import { env } from "../../utils/env";
 
@@ -21,7 +21,7 @@ export async function login(email: string, password: string) {
   }
 
   const token = jwt.sign({ userId: user.id, role: user.role } as JwtPayload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.JWT_EXPIRES_IN as
   });
 
   return {
