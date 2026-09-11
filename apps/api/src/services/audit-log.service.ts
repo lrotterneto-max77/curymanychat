@@ -1,11 +1,12 @@
 import { prisma } from "../utils/prisma";
+import { Prisma } from "@prisma/client";
 
 interface AuditParams {
   userId?: string | null;
   action: string;
   entityType: string;
   entityId?: string | null;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 /**
