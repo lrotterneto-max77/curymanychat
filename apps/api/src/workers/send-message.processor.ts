@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma";
 import { logger } from "../utils/logger";
 import { metaApiService, MetaRateLimitError, MetaApiError } from "../services/meta-api.service";
 import { checkCanSendToLead, recordComplianceBlock } from "../services/compliance-engine";
+import { getOrCreateConversation } from "../services/conversation.service";
 import { outboundQueue, OutboundJobData } from "../queues/whatsapp.queues";
 
 /**
@@ -50,6 +51,10 @@ export async function processSendMessageJob(job: Job<OutboundJobData>) {
       languageCode: recipient.campaign.template.language,
     });
 
+    // Garante que a mensagem de campanha fica vinculada à MESMA Conversation
+    // do lead (a mesma que mensagens inbound e respostas manuais usam).
+    const conversation = await getOrCreateConversation(recipient.leadId);
+
     await prisma.$transaction([
       prisma.campaignRecipient.update({
         where: { id: campaignRecipientId },
@@ -58,6 +63,7 @@ export async function processSendMessageJob(job: Job<OutboundJobData>) {
       prisma.message.create({
         data: {
           leadId: recipient.leadId,
+          conversationId: conversation.id,
           direction: "OUTBOUND",
           metaMessageId: result.metaMessageId,
           templateId: recipient.campaign.templateId,

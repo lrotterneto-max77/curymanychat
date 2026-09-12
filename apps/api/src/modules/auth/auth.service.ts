@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt, { type SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { prisma } from "../../utils/prisma";
 import { env } from "../../utils/env";
 
@@ -20,13 +20,10 @@ export async function login(email: string, password: string) {
     throw new Error("Credenciais inválidas");
   }
 
-const token = jwt.sign(
-  { userId: user.id, role: user.role } as JwtPayload,
-  env.JWT_SECRET,
-  {
-    expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"],
-  }
-);
+  const token = jwt.sign({ userId: user.id, role: user.role } as JwtPayload, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN,
+  });
+
   return {
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },

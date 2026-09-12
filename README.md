@@ -75,8 +75,31 @@ Em desenvolvimento local, exponha a porta 3333 com uma ferramenta de tunelamento
 - Opt-out automático por palavra-chave (SAIR/PARAR/STOP/CANCELAR/etc.) e botão manual
 - Sincronização de templates com pausa automática de campanhas quando um template deixa de estar aprovado
 
+## Frontend (Next.js)
+
+```bash
+cd apps/web
+cp .env.example .env.local
+# ajuste NEXT_PUBLIC_API_URL se a API não estiver em localhost:3333
+
+npm install
+npm run dev                   # http://localhost:3000
+```
+
+Login inicial (criado pelo seed do backend): `admin@imobiliaria.com` / `admin123`.
+
+Páginas implementadas:
+
+- **Login** — autenticação via JWT
+- **Dashboard** — indicadores gerais (leads, opt-in, campanhas em andamento) e campanhas recentes
+- **Leads** — listagem, cadastro manual e importação CSV/XLSX com resumo de duplicados/inválidos
+- **Templates** — listagem e sincronização com a conta oficial da Meta
+- **Campanhas** — listagem, pausar campanha em andamento, e assistente de criação em 3 passos (definir público/template → revisar elegibilidade → confirmar disparo)
+
+O menu lateral já reserva os espaços para Conversas, Corretores, Pipeline, Relatórios e Compliance — marcados como "em breve" até esses módulos do backend serem implementados.
+
 ## Próximos módulos (não incluídos nesta entrega)
 
-- CRM/Pipeline (Kanban), Inbox visual, distribuição para corretores (round-robin), relatórios, painel "Saúde do WhatsApp", Meta Lead Ads webhook, e o frontend Next.js.
+- CRM/Pipeline (Kanban), Inbox visual, distribuição para corretores (round-robin), relatórios, painel "Saúde do WhatsApp", Meta Lead Ads webhook.
 
 Peça para eu continuar com qualquer um desses módulos.

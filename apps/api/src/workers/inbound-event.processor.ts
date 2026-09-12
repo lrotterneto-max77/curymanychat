@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma";
 import { logger } from "../utils/logger";
 import { InboundJobData } from "../queues/whatsapp.queues";
 import { checkOptOutSpike } from "../services/compliance-engine";
+import { findOrCreateLeadByPhone } from "../modules/leads/leads.service";
 
 const OPT_OUT_KEYWORDS = ["sair", "parar", "stop", "cancelar", "não quero", "nao quero", "remover"];
 
@@ -65,11 +66,9 @@ async function updateMessageStatus(status: any) {
 
 async function handleInboundMessage(message: any, contactPhone: string) {
   const phoneE164 = "+" + contactPhone;
-  const lead = await prisma.lead.findUnique({ where: { phoneE164 } });
-  if (!lead) {
-    logger.warn({ phoneE164 }, "Mensagem inbound de número não cadastrado como lead");
-    return;
-  }
+  // Se o telefone ainda não existir como lead, cria automaticamente
+  // (ver leads.service.ts para detalhes de opt-in do lead criado assim).
+  const lead = await findOrCreateLeadByPhone(phoneE164);
 
   const text: string = message.text?.body || "";
 

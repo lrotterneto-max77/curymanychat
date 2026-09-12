@@ -11,6 +11,7 @@ import { authRouter } from "./modules/auth/auth.routes";
 import { leadsRouter } from "./modules/leads/leads.routes";
 import { templatesRouter } from "./modules/templates/templates.routes";
 import { campaignsRouter } from "./modules/campaigns/campaigns.routes";
+import { conversationsRouter } from "./modules/conversations/conversations.routes";
 import { whatsappWebhookRouter } from "./webhooks/whatsapp.webhook";
 
 const app = express();
@@ -46,6 +47,7 @@ app.use("/auth", authRouter);
 app.use("/leads", leadsRouter);
 app.use("/templates", templatesRouter);
 app.use("/campaigns", campaignsRouter);
+app.use("/conversations", conversationsRouter);
 
 app.use(errorHandler);
 

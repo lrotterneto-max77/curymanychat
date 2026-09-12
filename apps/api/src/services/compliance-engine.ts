@@ -5,11 +5,24 @@ export type ComplianceCheckResult =
   | { allowed: true }
   | { allowed: false; reason: string };
 
-const SESSION_WINDOW_HOURS = 24;
+export const SESSION_WINDOW_HOURS = 24;
 
 interface CheckSendParams {
   leadId: string;
   templateId?: string | null; // se null, é mensagem de sessão (texto livre)
+}
+
+/**
+ * Única fonte de verdade para a regra da janela de atendimento de 24h.
+ * Usada pelo compliance-engine (para decidir se pode enviar) e pelo módulo
+ * de conversas (para expor `windowOpen` na API) — nunca duplicar este
+ * cálculo em outro lugar do backend, e nunca reimplementar no frontend.
+ */
+export function isSessionWindowOpen(lastCustomerMessageAt: Date | null | undefined): boolean {
+  return (
+    !!lastCustomerMessageAt &&
+    Date.now() - new Date(lastCustomerMessageAt).getTime() < SESSION_WINDOW_HOURS * 60 * 60 * 1000
+  );
 }
 
 /**
@@ -41,13 +54,14 @@ export async function checkCanSendToLead(params: CheckSendParams): Promise<Compl
     return { allowed: false, reason: `contato em suppression list (${suppressed.reason})` };
   }
 
-  // 3. Opt-in válido obrigatório para campanha ativa
-  if (!lead.consent || !lead.consent.optIn) {
-    return { allowed: false, reason: "lead sem opt-in válido" };
-  }
-
-  // 4. Template aprovado (se for envio via template)
   if (params.templateId) {
+    // Envio via template (campanha / mensagem de negócio-iniciada): continua
+    // exigindo opt-in de marketing explícito, além do template aprovado.
+    // Comportamento IDÊNTICO ao anterior — nada muda aqui para campanhas.
+    if (!lead.consent || !lead.consent.optIn) {
+      return { allowed: false, reason: "lead sem opt-in válido" };
+    }
+
     const template = await prisma.whatsappTemplate.findUnique({ where: { id: params.templateId } });
     if (!template) {
       return { allowed: false, reason: "template não encontrado" };
@@ -56,13 +70,13 @@ export async function checkCanSendToLead(params: CheckSendParams): Promise<Compl
       return { allowed: false, reason: `template com status ${template.status}, não aprovado` };
     }
   } else {
-    // 5. Mensagem de sessão exige janela de atendimento aberta
-    const lastCustomerMessageAt = lead.conversation?.lastCustomerMessageAt;
-    const windowOpen =
-      !!lastCustomerMessageAt &&
-      Date.now() - new Date(lastCustomerMessageAt).getTime() < SESSION_WINDOW_HOURS * 60 * 60 * 1000;
-
-    if (!windowOpen) {
+    // Mensagem de sessão (resposta humana dentro da janela de atendimento):
+    // pela política da Meta, o cliente ao escrever primeiro já habilita a
+    // empresa a responder dentro da janela de 24h — isso é distinto do
+    // opt-in de marketing exigido para campanhas/templates. Por isso NÃO
+    // exigimos lead.consent.optIn aqui; o gate é a suppression list (já
+    // verificada acima) e a janela de atendimento estar aberta.
+    if (!isSessionWindowOpen(lead.conversation?.lastCustomerMessageAt)) {
       return {
         allowed: false,
         reason: "janela de atendimento fechada — é necessário usar um template aprovado",

@@ -2,9 +2,9 @@ import { Queue } from "bullmq";
 import { redisConnection } from "./connection";
 import { env } from "../utils/env";
 
-export const OUTBOUND_QUEUE_NAME = "whatsapp-outbound";
-export const INBOUND_QUEUE_NAME = "whatsapp-inbound";
-export const TEMPLATE_SYNC_QUEUE_NAME = "templates-sync";
+export const OUTBOUND_QUEUE_NAME = "whatsapp:outbound";
+export const INBOUND_QUEUE_NAME = "whatsapp:inbound";
+export const TEMPLATE_SYNC_QUEUE_NAME = "templates:sync";
 
 /**
  * Fila de envio. O rate limiter é calibrado abaixo dos limites informados

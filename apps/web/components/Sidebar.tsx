@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", implemented: true },
   { href: "/leads", label: "Leads", implemented: true },
-  { href: "/conversas", label: "Conversas", implemented: false },
+  { href: "/conversas", label: "Conversas", implemented: true },
   { href: "/campaigns", label: "Campanhas", implemented: true },
   { href: "/templates", label: "Templates", implemented: true },
   { href: "/corretores", label: "Corretores", implemented: false },
